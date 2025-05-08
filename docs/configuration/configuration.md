@@ -138,11 +138,16 @@ global:
   # Specifies the validation scheme for metric and label names. Either blank or
   # "utf8" for full UTF-8 support, or "legacy" for letters, numbers, colons,
   # and underscores.
-  [ metric_name_validation_scheme <string> | default "utf8" ]
+  [ metric_name_validation_scheme: <string> | default "utf8" ]
 
   # Specifies whether to convert all scraped classic histograms into native
   # histograms with custom buckets.
-  [ convert_classic_histograms_to_nhcb <bool> | default = false]
+  [ convert_classic_histograms_to_nhcb: <bool> | default = false]
+
+  # Specifies whether to scrape a classic histogram, even if it is also exposed as a native
+  # histogram (has no effect without --enable-feature=native-histograms).
+  [ always_scrape_classic_histograms: <boolean> | default = false ]
+
 
 runtime:
   # Configure the Go garbage collector GOGC parameter
@@ -186,6 +191,16 @@ otlp:
   # - "NoUTF8EscapingWithSuffixes" is a mode that relies on UTF-8 support in Prometheus.
   #   It preserves all special characters like dots, but still adds required metric name suffixes
   #   for units and _total, as UnderscoreEscapingWithSuffixes does.
+  # - (EXPERIMENTAL) "NoTranslation" is a mode that relies on UTF-8 support in Prometheus.
+  #   It preserves all special character like dots and won't append special suffixes for metric
+  #   unit and type.
+  #
+  #   WARNING: The "NoTranslation" setting has significant known risks and limitations (see https://prometheus.io/docs/practices/naming/  
+  #   for details):
+  #       * Impaired UX when using PromQL in plain YAML (e.g. alerts, rules, dashboard, autoscaling configuration).
+  #       * Series collisions which in the best case may result in OOO errors, in the worst case a silently malformed
+  #         time series. For instance, you may end up in situation of ingesting `foo.bar` series with unit
+  #         `seconds` and a separate series `foo.bar` with unit `milliseconds`.
   [ translation_strategy: <string> | default = "UnderscoreEscapingWithSuffixes" ]
   # Enables adding "service.name", "service.namespace" and "service.instance.id"
   # resource attributes to the "target_info" metric, on top of converting
@@ -244,7 +259,8 @@ job_name: <job_name>
 
 # Whether to scrape a classic histogram, even if it is also exposed as a native
 # histogram (has no effect without --enable-feature=native-histograms).
-[ always_scrape_classic_histograms: <boolean> | default = false ]
+[ always_scrape_classic_histograms: <boolean> |
+default = <global.always_scrape_classic_hisotgrams> ]
 
 # The HTTP resource path on which to fetch metrics from targets.
 [ metrics_path: <path> | default = /metrics ]
@@ -471,7 +487,7 @@ metric_relabel_configs:
 # Specifies the validation scheme for metric and label names. Either blank or 
 # "utf8" for full UTF-8 support, or "legacy" for letters, numbers, colons, and
 # underscores.
-[ metric_name_validation_scheme <string> | default "utf8" ]
+[ metric_name_validation_scheme: <string> | default "utf8" ]
 
 # Specifies the character escaping scheme that will be requested when scraping
 # for metric and label names that do not conform to the legacy Prometheus
@@ -487,7 +503,7 @@ metric_relabel_configs:
 # If this value is left blank, Prometheus will default to `allow-utf-8` if the
 # validation scheme for the current scrape config is set to utf8, or
 # `underscores` if the validation scheme is set to `legacy`.
-[ metric_name_validation_scheme <string> | default "utf8" ]
+[ metric_name_validation_scheme: <string> | default "utf8" ]
 
 # Limit on total number of positive and negative buckets allowed in a single
 # native histogram. The resolution of a histogram with more buckets will be
@@ -538,7 +554,7 @@ metric_relabel_configs:
 
 # Specifies whether to convert classic histograms into native histograms with
 # custom buckets (has no effect without --enable-feature=native-histograms).
-[ convert_classic_histograms_to_nhcb <bool> | default =
+[ convert_classic_histograms_to_nhcb: <bool> | default =
 <global.convert_classic_histograms_to_nhcb>]
 ```
 
@@ -649,7 +665,7 @@ A `tls_config` allows configuring TLS connections.
 
 ### `<oauth2>`
 
-OAuth 2.0 authentication using the client credentials grant type.
+OAuth 2.0 authentication using the client credentials or password grant type.
 Prometheus fetches an access token from the specified endpoint with
 the given client access and secret keys.
 
@@ -669,6 +685,11 @@ scopes:
 token_url: <string>
 
 # Optional parameters to append to the token URL.
+# To set 'password' grant type, add it to params:
+# endpoint_params:
+#   grant_type: 'password'
+#   username: 'username@example.com'
+#   password: 'strongpassword'
 endpoint_params:
   [ <string>: <string> ... ]
 
@@ -1622,6 +1643,10 @@ role: <string>
 
 # The time after which the servers are refreshed.
 [ refresh_interval: <duration> | default = 60s ]
+
+# Label selector used to filter the servers when fetching them from the API. See https://docs.hetzner.cloud/#label-selector for more details.
+# Only used when role is hcloud.
+[ label_selector: <string> ]
 
 # HTTP client settings, including authentication methods (such as basic auth and
 # authorization), proxy configurations, TLS options, custom HTTP headers, etc.
